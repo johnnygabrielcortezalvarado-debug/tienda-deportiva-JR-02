@@ -1,22 +1,25 @@
-FROM php:8.2-apache
+FROM php:8.2-fpm-alpine
 
-RUN a2dismod mpm_event mpm_worker 2>/dev/null || true && \
-    a2enmod mpm_prefork rewrite headers && \
-    docker-php-ext-install pdo pdo_mysql
+# Instalar nginx y dependencias
+RUN apk add --no-cache nginx
 
+# Instalar extensión PDO MySQL
+RUN docker-php-ext-install pdo pdo_mysql
+
+# Configurar Nginx
+RUN mkdir -p /run/nginx
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+
+# Copiar proyecto
 COPY . /var/www/html/
 
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-        Options -Indexes\n\
-    </Directory>\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
-
+# Permisos
 RUN chown -R www-data:www-data /var/www/html
+
+# Script de inicio
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["/start.sh"]
